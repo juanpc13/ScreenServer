@@ -62,10 +62,17 @@ def select_region():
     root.mainloop()
 
 # ---------------------------
-# Captura de frames para streaming
+# Captura de frames para streaming (con frame global)
 # ---------------------------
-def generate_frames():
-    global monitor_region
+last_frame = None
+last_frame_lock = threading.Lock()
+
+# create a default frame de la imagen que en esta raiz llamada logo.png
+default_frame = cv2.imread('logo.png')
+default_frame_bytes = cv2.imencode('.jpg', default_frame)[1].tobytes()
+
+def frame_producer():
+    global monitor_region, last_frame, default_frame
     with mss.mss() as sct:
         while True:
             if monitor_region:
@@ -74,12 +81,23 @@ def generate_frames():
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
                 ret, buffer = cv2.imencode('.jpg', frame)
                 frame_bytes = buffer.tobytes()
-
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-                time.sleep(1 / 30)
+                with last_frame_lock:
+                    last_frame = frame_bytes
+                time.sleep(1 / 60)
             else:
                 time.sleep(0.1)
+                with last_frame_lock:
+                    last_frame = default_frame_bytes
+
+def generate_frames():
+    global last_frame
+    while True:
+        with last_frame_lock:
+            frame_bytes = last_frame
+        if frame_bytes:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        time.sleep(1 / 32)
 
 # ---------------------------
 # Flask endpoints
@@ -124,9 +142,13 @@ def video_feed():
 # ---------------------------
 def listen_for_hotkey():
     def on_press(key):
+        global monitor_region
         if key == keyboard.Key.f2:
             print("🔴 Selección iniciada... Arrastra para seleccionar región.")
             select_region()
+        elif key == keyboard.Key.f8:
+            monitor_region = None
+            print("🟡 Región limpiada. Mostrando imagen por defecto.")
 
     def on_release(key):
         if key in pressed_keys:
@@ -140,14 +162,15 @@ def listen_for_hotkey():
 # Main
 # ---------------------------
 if __name__ == '__main__':
+    # Iniciar el hilo productor de frames
+    threading.Thread(target=frame_producer, daemon=True).start()
+    
     # Escuchar teclas en un hilo separado
     threading.Thread(target=listen_for_hotkey, daemon=True).start()
 
     print("✅ Presiona F2 para seleccionar región")
-    print("🌐 Luego abre http://localhost:5000 en tu navegador")
-
-    # Esperar a que se seleccione región
-    selection_done.wait()
+    print("✅ Presiona F8 para limpiar la región y mostrar imagen por defecto")
+    print("🌐 Luego abre http://localhost:5000 en tu navegador")    
 
     # Iniciar servidor con Waitress para producción
     serve(app, host='0.0.0.0', port=5000)
