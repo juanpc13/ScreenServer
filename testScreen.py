@@ -1,111 +1,57 @@
-import cv2
-import numpy as np
-import mss
-import time
-import threading
-from flask import Flask, Response
-from pynput import keyboard
-import tkinter as tk
+from flask import Flask, request, session, jsonify, render_template
 from waitress import serve
+from datetime import datetime
+import uuid
+
+from access_logger import AccessLogger  # Si lo pones en otro archivo, si no, ignora esta línea
 
 # Flask app
 app = Flask(__name__)
+#md5 juan
+app.secret_key = 'a94652aa97c7211ba8954dd15a3cf838'
 
-# ---------------------------
-# Captura de frames para streaming (con frame global)
-# ---------------------------
-last_frame = None
-last_frame_lock = threading.Lock()
+access_logger = AccessLogger()  # Instancia global
 
-# Camara virtual de OBS u otro dispositivo
-# Abrir la cámara virtual de OBS (usualmente es el dispositivo 0 o 1)
-
-# --- Configuración de cámara virtual de OBS u otro dispositivo ---
-cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
-if not cap.isOpened():
-    print("No se pudo abrir la cámara virtual de OBS. Asegúrate de que esté activa.")
-    raise SystemExit
-
-# Mejorar calidad: establecer resolución (ajusta estos valores según tu cámara)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-
-# Task para crear un frame actual
-def frame_producer():
-    global last_frame, cap
-    while True:
-        with last_frame_lock:
-            ret, frame = cap.read()
-            if not ret:
-                print("Error al capturar el frame de la cámara.")
-                continue
-            
-            # Convertir a formato JPEG con calidad alta
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]  # 95 es alta calidad
-            _, buffer = cv2.imencode('.jpg', frame, encode_param)
-            last_frame = buffer.tobytes()
-        
-        time.sleep(1 / 60)
-        
-
-def generate_frames():
-    global last_frame
-    while True:
-        with last_frame_lock:
-            frame_bytes = last_frame
-        if frame_bytes:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        time.sleep(1 / 32)
-
-# ---------------------------
-# Flask endpoints
-# ---------------------------
 @app.route('/')
 def index():
-    return '''
-    <html>
-    <head>
-        <title>Screen Stream</title>
-        <style>
-            html, body {
-                margin: 0;
-                padding: 0;
-                width: 100vw;
-                height: 100vh;
-                background: #222;
-            }
-            img {
-                width: 100vw;
-                height: 100vh;
-                object-fit: contain;
-                border-radius: 0;
-                box-shadow: none;
-                background: #333;
-                display: block;
-            }
-        </style>
-    </head>
-    <body>
-        <img src="/video" alt="Screen Stream" />
-    </body>
-    </html>
-    '''
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+    session_id = session['session_id']
 
-@app.route('/video')
-def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    ip = request.remote_addr
+    user_agent = request.headers.get('User-Agent')
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-# ---------------------------
-# Main
-# ---------------------------
-if __name__ == '__main__':
-    # Iniciar el hilo productor de frames
-    threading.Thread(target=frame_producer, daemon=True).start()
+    # Registrar acceso usando la clase
+    access_logger.log_access(session_id, ip, user_agent, now)
+    # Imprimir en consola
+    print(f"[{now}] GET / from {ip} | Session: {session_id} | User-Agent: {user_agent}")
 
-    # Seleccionar región de captura
-    print("🌐 Luego abre http://localhost:5000 en tu navegador")   
+    # Renderizar una plantilla HTML simple
+    return render_template('index.html')
 
-    # Iniciar servidor con Waitress para producción
-    serve(app, host='0.0.0.0', port=5000)
+@app.route('/user_aliases')
+def user_aliases():
+    # Supón que access_logger tiene un método get_user_aliases() que devuelve una lista o dict
+    aliases = access_logger.get_all_user_aliases()  # Debes implementar este método en AccessLogger
+    return jsonify(aliases)
+
+@app.route('/access_history')
+def access_history():
+    # Supón que access_logger tiene un método get_access_history() que devuelve una lista de accesos
+    history = access_logger.get_access_history(limit=20)  # Devuelve los últimos 20 accesos
+    return jsonify(history)
+
+@app.route('/set_alias', methods=['POST'])
+def set_alias():
+    if 'session_id' not in session:
+        return jsonify({"error": "No session found"}), 400
+    data = request.get_json()
+    alias = data.get('alias')
+    if not alias:
+        return jsonify({"error": "Alias is required"}), 400
+    session_id = session['session_id']
+    access_logger.set_user_alias(session_id, alias)
+    return jsonify({"success": True, "session_id": session_id, "alias": alias})
+
+serve(app, host='0.0.0.0', port=5000)

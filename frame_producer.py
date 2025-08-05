@@ -2,9 +2,10 @@ import threading
 import time
 
 class FrameProducer:
-    def __init__(self):
+    def __init__(self, frameGenerator):
         self._actual_frame = None
         self._lock = threading.Lock()
+        self._frameGenerator = frameGenerator
         self._running = True
         self._thread = threading.Thread(target=self._update_frame_loop, daemon=True)
         self._thread.start()
@@ -17,10 +18,8 @@ class FrameProducer:
             time.sleep(1/60)
 
     def _generate_frame(self):
-        # Aquí puedes poner la lógica para generar el frame
-        # Por ahora solo retorna el tiempo actual como ejemplo
-        return time.time()
-
+        return self._frameGenerator.get_frame_bytes()
+    
     def get_actual_frame(self):
         with self._lock:
             return self._actual_frame
