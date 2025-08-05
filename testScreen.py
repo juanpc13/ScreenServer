@@ -1,8 +1,10 @@
-from flask import Flask, request, session, jsonify, render_template
+from flask import Flask, request, session, jsonify, render_template, Response
 from waitress import serve
 from datetime import datetime
 import uuid
+import time
 
+from frame_provider import FrameProviderScreenRegion, FrameProviderCamera  # Asegúrate de que este archivo esté en el mismo directorio
 from access_logger import AccessLogger  # Si lo pones en otro archivo, si no, ignora esta línea
 
 # Flask app
@@ -11,6 +13,18 @@ app = Flask(__name__)
 app.secret_key = 'a94652aa97c7211ba8954dd15a3cf838'
 
 access_logger = AccessLogger()  # Instancia global
+
+frame_provider = FrameProviderScreenRegion(monitor_index=2, fps=60, default_image_path="logo.png")  # Usa la segunda pantalla
+#frame_provider = FrameProviderCamera(device_index=0, width=1280, height=720, default_image_path="logo.png")  # Usa la cámara por defecto
+#frame_provider.stop()  # Detener la captura de frames al iniciar
+
+def generate_frames():
+    while True:
+        frame = frame_provider.get_frame()
+        if frame:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+        time.sleep(1 / 32)
 
 @app.route('/')
 def index():
@@ -29,6 +43,10 @@ def index():
 
     # Renderizar una plantilla HTML simple
     return render_template('index.html')
+
+@app.route('/video')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/user_aliases')
 def user_aliases():
