@@ -40,7 +40,7 @@
         <button id="aliasBtn">Guardar alias</button>
         <span id="aliasMsg" style="color: #0f0; margin-left: 10px;"></span>
     </div>
-    <img src="/video" alt="Screen Stream" />
+    <img id="screenImg" alt="Screen Stream" />
     <script>
         document.getElementById('aliasBtn').onclick = function() {
             const alias = document.getElementById('aliasInput').value;
@@ -69,6 +69,48 @@
                 document.getElementById('aliasMsg').style.color = "#f00";
             });
         };
+
+        // --- WebSocket para recibir frames y actualizar la imagen con reconexión ---
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsHost = window.location.hostname;
+        const wsPort = 8765; // Cambia si usas otro puerto
+        const wsUrl = `${wsProtocol}://${wsHost}:${wsPort}`;
+        const imgElem = document.getElementById('screenImg');
+
+        let ws;
+        let reconnectTimeout = null;
+
+        function connectWebSocket() {
+            ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onmessage = function(event) {
+                if (event.data instanceof ArrayBuffer) {
+                    const blob = new Blob([event.data], {type: 'image/jpeg'});
+                    const url = URL.createObjectURL(blob);
+                    imgElem.src = url;
+                    // Liberar el objeto anterior para evitar fugas de memoria
+                    if (imgElem._lastUrl) URL.revokeObjectURL(imgElem._lastUrl);
+                    imgElem._lastUrl = url;
+                }
+            };
+            ws.onopen = function() {
+                console.log('WebSocket conectado para recibir frames');
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+            };
+            ws.onerror = function(e) {
+                console.error('WebSocket error:', e);
+            };
+            ws.onclose = function() {
+                console.warn('WebSocket cerrado, intentando reconectar en 5 segundos...');
+                reconnectTimeout = setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        connectWebSocket();
     </script>
 </body>
 </html>
