@@ -24,14 +24,6 @@ frame_provider = FrameProviderScreenRegion(monitor_index=1, fps=60, default_imag
 ws_server = WebSocketServer(frame_provider=frame_provider, fps=20)  # Instancia del servidor WebSocket
 ws_server.start_in_thread()  # Iniciar el servidor WebSocket
 
-def generate_frames():
-    while True:
-        frame = frame_provider.get_frame()
-        if frame:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-        time.sleep(1 / 32)
-
 @app.route('/')
 def index():
     if 'session_id' not in session:
@@ -49,10 +41,6 @@ def index():
 
     # Renderizar una plantilla HTML simple
     return render_template('index.html')
-
-@app.route('/video')
-def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/user_aliases')
 def user_aliases():
