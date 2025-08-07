@@ -18,6 +18,7 @@ class WebSocketServer:
                 print(f"Mensaje recibido: {message}")
                 await websocket.send(f"Echo: {message}")
         finally:
+            print("Cliente desconectado")
             self.connected_clients.remove(websocket)
 
     async def broadcast_frame(self):
@@ -25,7 +26,6 @@ class WebSocketServer:
             frame = self.frame_provider.get_frame()
             try:
                 await asyncio.gather(*(client.send(frame) for client in self.connected_clients))
-                #await asyncio.gather(*(client.send(frame) for client in self.connected_clients if not client.closed))
             except Exception as e:
                 print(f"Error al enviar el frame: {e}")
 
@@ -45,7 +45,7 @@ class WebSocketServer:
 
     async def run(self):
         async with websockets.serve(self.echo, self.host, self.port):
-            print(f"Servidor WebSocket sencillo en ws://{self.host}:{self.port}")
+            print(f"Servidor WebSocket en ws://{self.host}:{self.port}")
             while True:
                 if self.frame_provider:
                     await self.broadcast_frame()

@@ -42,6 +42,31 @@
     </div>
     <img id="screenImg" alt="Screen Stream" />
     <script>
+        // --- Mantener pantalla activa en móviles usando Wake Lock API ---
+        let wakeLock = null;
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock liberado');
+                    });
+                    console.log('Wake Lock activado');
+                } catch (err) {
+                    console.warn('No se pudo activar Wake Lock:', err);
+                }
+            }
+        }
+
+        // Solicitar Wake Lock al cargar la página y al volver del fondo
+        if (/Mobi|Android/i.test(navigator.userAgent)) {
+            requestWakeLock();
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    requestWakeLock();
+                }
+            });
+        }
         document.getElementById('aliasBtn').onclick = function() {
             const alias = document.getElementById('aliasInput').value;
             if (!alias) {
