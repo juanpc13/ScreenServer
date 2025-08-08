@@ -2,11 +2,15 @@ from flask import Flask, request, session, jsonify, render_template, Response
 from waitress import serve
 from datetime import datetime
 import uuid
-import time
 
 from frame_provider import FrameProviderScreenRegion, FrameProviderCamera  # Asegúrate de que este archivo esté en el mismo directorio
 from access_logger import AccessLogger  # Si lo pones en otro archivo, si no, ignora esta línea
 from websocket_server import WebSocketServer
+
+from music_queue import MusicQueue  # Asegúrate de que este archivo esté en el mismo directorio
+
+# Inicializar la cola de música
+music_queue = MusicQueue()
 
 # Flask app
 app = Flask(__name__)
@@ -22,6 +26,7 @@ frame_provider = FrameProviderScreenRegion(monitor_index=1, fps=60, default_imag
 # Iniciar el servidor WebSocket en segundo plano para transmitir los frames
 #ws_server = FrameWebSocketServer(frame_provider, host='0.0.0.0', port=8765, fps=20)
 ws_server = WebSocketServer(frame_provider=frame_provider, fps=20)  # Instancia del servidor WebSocket
+ws_server.add_message_type(b'\x01')  # Tipo de mensaje para texto
 ws_server.start_in_thread()  # Iniciar el servidor WebSocket
 
 @app.route('/')
@@ -65,6 +70,17 @@ def set_alias():
     session_id = session['session_id']
     access_logger.set_user_alias(session_id, alias)
     return jsonify({"success": True, "session_id": session_id, "alias": alias})
+
+# session_id is the metadata for the music queue
+@app.route('/music_queue', methods=['POST'])
+def add_to_music_queue():
+    data = request.get_json()
+    song = data.get('song')
+    if 'session_id' not in session:
+        return jsonify({"error": "No session found"}), 400
+    session_id = session['session_id']
+    item_id = music_queue.agregar(song, metadata=session_id)
+    return jsonify({"success": True, "item_id": item_id})
 
 print("Flask app running on http://localhost:5000")
 serve(app, host='0.0.0.0', port=5000)

@@ -111,7 +111,17 @@
 
             ws.onmessage = function(event) {
                 if (event.data instanceof ArrayBuffer) {
-                    const blob = new Blob([event.data], {type: 'image/jpeg'});
+                    // Convertir a Uint8Array para manipular los bytes
+                    const arr = new Uint8Array(event.data);
+                    // Buscar el separador ';' que marca el final del MIME type
+                    let sep = 0;
+                    while (sep < arr.length && arr[sep] !== 59) sep++; // 59 es ';'
+                    if (sep === arr.length) return; // No se encontró separador
+                    // Extraer el MIME type
+                    const mimeType = new TextDecoder().decode(arr.slice(0, sep));
+                    // Extraer el contenido binario real
+                    const bin = arr.slice(sep + 1);
+                    const blob = new Blob([bin], {type: mimeType});
                     const url = URL.createObjectURL(blob);
                     imgElem.src = url;
                     // Liberar el objeto anterior para evitar fugas de memoria
