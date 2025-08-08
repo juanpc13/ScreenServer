@@ -5,7 +5,7 @@ import uuid
 
 from frame_provider import FrameProviderScreenRegion, FrameProviderCamera  # Asegúrate de que este archivo esté en el mismo directorio
 from access_logger import AccessLogger  # Si lo pones en otro archivo, si no, ignora esta línea
-from websocket_server import WebSocketServer
+from test_code.websocket_server import WebSocketServer
 
 from music_queue import MusicQueue  # Asegúrate de que este archivo esté en el mismo directorio
 

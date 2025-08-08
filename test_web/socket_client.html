@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cliente de Prueba Socket.IO</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Cliente de Prueba Socket.IO</h1>
+    <input type="text" id="mensaje" placeholder="Escribe un mensaje">
+    <button onclick="enviarMensaje()">Enviar</button>
+    <ul id="mensajes"></ul>
+    <img id="frameImg" alt="Frame recibido" style="max-width: 100%; display: block; margin-top: 20px;"/>
+    <script>
+        // Conexión al servidor en localhost:8080
+        const socket = io('http://localhost:8080');
+
+        // Mostrar mensajes recibidos
+        socket.on('message', function(data) {
+            const li = document.createElement('li');
+            li.textContent = data;
+            document.getElementById('mensajes').appendChild(li);
+        });
+
+        // Mostrar imagen recibida como frame (tipo image/jpeg)
+        socket.on('frame', function(data) {
+            var blob = new Blob([data], {type: 'image/jpeg'});
+            const url = URL.createObjectURL(blob);
+            const img = document.getElementById('frameImg');
+            img.src = url;
+
+            // Liberar el objeto URL anterior para evitar fugas de memoria
+            if (img._oldUrl) URL.revokeObjectURL(img._oldUrl);
+            img._oldUrl = url;
+        });
+
+        // Enviar mensaje al servidor
+        function enviarMensaje() {
+            const input = document.getElementById('mensaje');
+            const mensaje = input.value;
+            if (mensaje.trim() !== "") {
+                socket.send(mensaje);
+                input.value = '';
+            }
+        }
+    </script>
+</body>
+</html>

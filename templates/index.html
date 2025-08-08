@@ -32,6 +32,7 @@
             margin-left: 8px;
         }
     </style>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
     <h1 style="color: white; text-align: center;">Screen Stream</h1>
@@ -42,31 +43,18 @@
     </div>
     <img id="screenImg" alt="Screen Stream" />
     <script>
-        // --- Mantener pantalla activa en móviles usando Wake Lock API ---
-        let wakeLock = null;
-        async function requestWakeLock() {
-            if ('wakeLock' in navigator) {
-                try {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLock.addEventListener('release', () => {
-                        console.log('Wake Lock liberado');
-                    });
-                    console.log('Wake Lock activado');
-                } catch (err) {
-                    console.warn('No se pudo activar Wake Lock:', err);
-                }
-            }
-        }
+        const socket = io('http://localhost:5000');
+        socket.on('frame', function(data) {
+            const blob = new Blob([data], {type: 'image/jpeg'});
+            const url = URL.createObjectURL(blob);
+            const img = document.getElementById('screenImg');
+            img.src = url;
 
-        // Solicitar Wake Lock al cargar la página y al volver del fondo
-        if (/Mobi|Android/i.test(navigator.userAgent)) {
-            requestWakeLock();
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible') {
-                    requestWakeLock();
-                }
-            });
-        }
+            // Liberar el objeto URL anterior para evitar fugas de memoria
+            if (img._oldUrl) URL.revokeObjectURL(img._oldUrl);
+            img._oldUrl = url;
+        });
+
         document.getElementById('aliasBtn').onclick = function() {
             const alias = document.getElementById('aliasInput').value;
             if (!alias) {
@@ -95,57 +83,6 @@
             });
         };
 
-        // --- WebSocket para recibir frames y actualizar la imagen con reconexión ---
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsHost = window.location.hostname;
-        const wsPort = 8765; // Cambia si usas otro puerto
-        const wsUrl = `${wsProtocol}://${wsHost}:${wsPort}`;
-        const imgElem = document.getElementById('screenImg');
-
-        let ws;
-        let reconnectTimeout = null;
-
-        function connectWebSocket() {
-            ws = new WebSocket(wsUrl);
-            ws.binaryType = 'arraybuffer';
-
-            ws.onmessage = function(event) {
-                if (event.data instanceof ArrayBuffer) {
-                    // Convertir a Uint8Array para manipular los bytes
-                    const arr = new Uint8Array(event.data);
-                    // Buscar el separador ';' que marca el final del MIME type
-                    let sep = 0;
-                    while (sep < arr.length && arr[sep] !== 59) sep++; // 59 es ';'
-                    if (sep === arr.length) return; // No se encontró separador
-                    // Extraer el MIME type
-                    const mimeType = new TextDecoder().decode(arr.slice(0, sep));
-                    // Extraer el contenido binario real
-                    const bin = arr.slice(sep + 1);
-                    const blob = new Blob([bin], {type: mimeType});
-                    const url = URL.createObjectURL(blob);
-                    imgElem.src = url;
-                    // Liberar el objeto anterior para evitar fugas de memoria
-                    if (imgElem._lastUrl) URL.revokeObjectURL(imgElem._lastUrl);
-                    imgElem._lastUrl = url;
-                }
-            };
-            ws.onopen = function() {
-                console.log('WebSocket conectado para recibir frames');
-                if (reconnectTimeout) {
-                    clearTimeout(reconnectTimeout);
-                    reconnectTimeout = null;
-                }
-            };
-            ws.onerror = function(e) {
-                console.error('WebSocket error:', e);
-            };
-            ws.onclose = function() {
-                console.warn('WebSocket cerrado, intentando reconectar en 5 segundos...');
-                reconnectTimeout = setTimeout(connectWebSocket, 5000);
-            };
-        }
-
-        connectWebSocket();
     </script>
 </body>
 </html>
