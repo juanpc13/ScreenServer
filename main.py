@@ -7,7 +7,7 @@ from flask import Flask, request, session, render_template
 from flask_socketio import SocketIO, send
 
 from access_logger import AccessLogger
-from frame_provider import FrameProviderScreenRegion
+from frame_provider import FrameProviderScreenRegion, FrameProviderCamera
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a94652aa97c7211ba8954dd15a3cf838'
@@ -46,8 +46,9 @@ def broadcast_frame(frame_provider, fps=20):
         socketio.sleep(1 / fps)
 
 if __name__ == '__main__':
-    frame_provider = FrameProviderScreenRegion(monitor_index=1, fps=60, default_image_path="logo.png")
-    #frame_provider.keyboard_start_listen()
+    #frame_provider = FrameProviderScreenRegion(monitor_index=1, fps=60, default_image_path="logo.png")
+    frame_provider = FrameProviderCamera(device_index=1, width=1280, height=720, default_image_path="logo.png")
+    
     socketio.start_background_task(broadcast_frame, frame_provider=frame_provider, fps=20)
 
     #socketio.run(app, host='0.0.0.0', port=5000)
