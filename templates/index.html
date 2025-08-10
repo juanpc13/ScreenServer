@@ -5,19 +5,71 @@
     <meta charset="UTF-8">
     <style>
         body { font-family: Arial; background: #f0f0f0; padding: 20px; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+        .container { max-width: 700px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
         h1 { text-align: center; }
-        ul { list-style: none; padding: 0; }
+        .main-flex {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .img-box {
+            flex: 0 0 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #screenImg {
+            max-width: 180px;
+            width: 100%;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px #ccc;
+            height: auto;
+        }
+        .queue-box {
+            flex: 1;
+        }
+        ul { list-style: none; padding: 0; margin: 0; }
         li { padding: 6px; border-bottom: 1px solid #ddd; }
+        .current-song {
+            background: #e0f7fa;
+            font-weight: bold;
+            border-left: 4px solid #00bcd4;
+        }
+        .current-label {
+            color: #00bcd4;
+            font-size: 0.9em;
+            margin-left: 8px;
+            font-weight: normal;
+        }
         form { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
         input, button { padding: 8px; font-size: 1em; }
+        @media (max-width: 600px) {
+            .main-flex {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .img-box {
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+            #screenImg {
+                max-width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>🎵 Cola de Canciones</h1>
     <p><strong>Conectado como:</strong> {{ username }}</p>
-    <ul id="queue"></ul>
+    <div class="main-flex">
+        <div class="img-box">
+            <img id="screenImg" src="" alt="Pantalla">
+        </div>
+        <div class="queue-box">
+            <ul id="queue"></ul>
+        </div>
+    </div>
     <form id="songForm">
         <input type="text" id="song" placeholder="Nombre de la canción" required>
         <input type="text" id="artist" placeholder="Artista" required>
@@ -38,9 +90,27 @@
         data.forEach(function(item, index) {
             var li = document.createElement("li");
             li.textContent = (index+1) + ". " + item.song + " - " + item.artist + " — propuesto por " + item.user;
+            if (index === 0) {
+                li.classList.add("current-song");
+                var span = document.createElement("span");
+                span.className = "current-label";
+                span.textContent = "⏯️ Actual";
+                li.appendChild(span);
+            }
             queueList.appendChild(li);
         });
     }
+
+    socket.on('frame', function(data) {
+        const blob = new Blob([data], {type: 'image/jpeg'});
+        const url = URL.createObjectURL(blob);
+        const img = document.getElementById('screenImg');
+        img.src = url;
+
+        // Liberar el objeto URL anterior para evitar fugas de memoria
+        if (img._oldUrl) URL.revokeObjectURL(img._oldUrl);
+        img._oldUrl = url;
+    });
 
     socket.on("update_queue", function(data) {
         renderQueue(data);

@@ -56,7 +56,31 @@ def add_song(data):
         })
         socketio.emit("update_queue", queue)
 
+import cv2
+def broadcast_frame(video_source="udp://@:5000", fps=20):
+    """Función para enviar frames en un hilo separado."""
+    while True:
+        try:
+            cap = cv2.VideoCapture(video_source)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            while True:
+                success, frame = cap.read()
+                if success:
+                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+                    _, buffer = cv2.imencode('.jpg', frame, encode_param)
+                    frame_bytes = buffer.tobytes()
+                    socketio.emit("frame", frame_bytes)
+                    socketio.sleep(1 / fps)
+                else:
+                    cap.release()
+                    break
+        except Exception as e:
+            print(f"Error en la captura de video: {e}")
+
 if __name__ == "__main__":
+    # Iniciar tarea en segundo plano para el frame
+    socketio.start_background_task(broadcast_frame, video_source="udp://@:5000", fps=20)
+
     if ENV == "production":
         try:
             import eventlet
@@ -66,3 +90,4 @@ if __name__ == "__main__":
             socketio.run(app, debug=DEBUG_MODE, host="0.0.0.0", allow_unsafe_werkzeug=True)
     else:
         socketio.run(app, debug=DEBUG_MODE, host="0.0.0.0", allow_unsafe_werkzeug=True)
+        
