@@ -5,11 +5,7 @@ import uuid
 
 app = Flask(__name__)
 app.secret_key = "clave_super_secreta"
-socketio = SocketIO(app)
-
-# Detectar entorno (default: development)
-ENV = os.getenv("FLASK_ENV", "development").lower()
-DEBUG_MODE = ENV != "production"  # True si no es producción
+socketio = SocketIO(app, async_mode="threading")
 
 queue = []
 
@@ -56,12 +52,16 @@ def add_song(data):
         })
         socketio.emit("update_queue", queue)
 
-import cv2
-def broadcast_frame(video_source="udp://@:5000", fps=20):
+def broadcast_frame(video_source="udp://@:5000", fps=22):
     """Función para enviar frames en un hilo separado."""
+    print("Iniciando la tarea de broadcast de frames...")
+    import cv2
+    img = cv2.imread("logo.png")
+    _, buffer = cv2.imencode('.jpg', img)
+    default_frame = buffer.tobytes()
     while True:
         try:
-            cap = cv2.VideoCapture(video_source)
+            cap = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             while True:
                 success, frame = cap.read()
@@ -76,18 +76,15 @@ def broadcast_frame(video_source="udp://@:5000", fps=20):
                     break
         except Exception as e:
             print(f"Error en la captura de video: {e}")
+            socketio.emit("frame", default_frame)
+            socketio.sleep(1)
 
 if __name__ == "__main__":
     # Iniciar tarea en segundo plano para el frame
-    socketio.start_background_task(broadcast_frame, video_source="udp://@:5000", fps=20)
+    socketio.start_background_task(broadcast_frame, "udp://@:5000", 22)
 
-    if ENV == "production":
-        try:
-            import eventlet
-            socketio.run(app, debug=DEBUG_MODE, host="0.0.0.0")
-        except ImportError:
-            print("Eventlet not installed, falling back to default server.")
-            socketio.run(app, debug=DEBUG_MODE, host="0.0.0.0", allow_unsafe_werkzeug=True)
-    else:
-        socketio.run(app, debug=DEBUG_MODE, host="0.0.0.0", allow_unsafe_werkzeug=True)
-        
+    # Detectar si estamos en producción o desarrollo
+    ENV = os.getenv("FLASK_ENV", "development").lower()
+    DEBUG_MODE = ENV != "production"
+    
+    socketio.run(app, debug=DEBUG_MODE, host="0.0.0.0")

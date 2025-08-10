@@ -2,6 +2,8 @@ import asyncio
 import threading
 import websockets
 
+from frame_provider import FrameProvider, FrameProviderVideoCapture
+
 class WebSocketServer:
     def __init__(self, host='0.0.0.0', port=8765, frame_provider=None, fps=20):
         self.host = host
@@ -65,7 +67,8 @@ class WebSocketServer:
 
 if __name__ == "__main__":
     print("Iniciando el servidor WebSocket en un hilo...")
-    server = WebSocketServer()
+    frame_provider = FrameProviderVideoCapture(video_source="udp://@:5000", default_image_path="logo.png")
+    server = WebSocketServer(frame_provider=frame_provider)
     server.start_in_thread()
     while True:
         pass

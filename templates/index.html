@@ -105,13 +105,12 @@
         const blob = new Blob([data], {type: 'image/jpeg'});
         const url = URL.createObjectURL(blob);
         const img = document.getElementById('screenImg');
-        img.src = url;
-
+        img.src = url;        
         // Liberar el objeto URL anterior para evitar fugas de memoria
         if (img._oldUrl) URL.revokeObjectURL(img._oldUrl);
         img._oldUrl = url;
     });
-
+    
     socket.on("update_queue", function(data) {
         renderQueue(data);
     });
