@@ -6,16 +6,14 @@ import cv2
 import numpy as np
 
 class FrameProvider(ABC):
-    def __init__(self, default_image_path=None):
+    def __init__(self, default_image_path="logo.png"):
         self.last_frame = None
         self.lock = threading.Lock()
-        self.running = True
-        self.default_frame = None
-        if default_image_path:
-            img = cv2.imread(default_image_path)
-            if img is not None:
-                _, buffer = cv2.imencode('.jpg', img)
-                self.default_frame = buffer.tobytes()
+        
+        img = cv2.imread(default_image_path)
+        _, buffer = cv2.imencode('.jpg', img)
+        self.default_frame = buffer.tobytes()
+        
         self.thread = threading.Thread(target=self._frame_producer, daemon=True)
         self.thread.start()
 
@@ -28,7 +26,6 @@ class FrameProvider(ABC):
         pass
 
     def stop(self):
-        self.running = False
         self.thread.join()
 
 # FrameProviderCamera implementa su propio _frame_producer
@@ -42,7 +39,7 @@ class FrameProviderCamera(FrameProvider):
         super().__init__(default_image_path=default_image_path)
 
     def _frame_producer(self):
-        while self.running:
+        while True:
             ret, frame = self.cap.read()
             if not ret:
                 print("Error al capturar el frame de la cámara.")
@@ -56,7 +53,7 @@ class FrameProviderCamera(FrameProvider):
 
     def get_frame(self):
         with self.lock:
-            if not self.running and self.default_frame is not None:
+            if self.default_frame is not None:
                 return self.default_frame
             return self.last_frame
 
@@ -70,7 +67,7 @@ class FrameProviderScreenRegion(FrameProvider):
 
     def _frame_producer(self):
         with mss.mss() as sct:
-            while self.running:
+            while True:
                 img = sct.grab(self.region)
                 frame = np.array(img)
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
@@ -82,15 +79,38 @@ class FrameProviderScreenRegion(FrameProvider):
 
     def get_frame(self):
         with self.lock:
-            if not self.running and self.default_frame is not None:
+            if self.default_frame is not None:
                 return self.default_frame
             return self.last_frame
 
     def set_region(self, region):
         self.region = region
 
-    def restar(self):
-        if not self.running:
-            self.running = True
-            self.thread = threading.Thread(target=self._frame_producer, daemon=True)
-            self.thread.start()
+class FrameProviderVideoCapture(FrameProvider):
+    def __init__(self, video_source, default_image_path="logo.png"):
+        self.video_source = video_source
+        super().__init__(default_image_path=default_image_path)
+
+    def _frame_producer(self):
+        while True:
+            cap = cv2.VideoCapture(self.video_source)
+            while True:
+                success, frame = cap.read()
+                if success:
+                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+                    _, buffer = cv2.imencode('.jpg', frame, encode_param)
+                    frame_bytes = buffer.tobytes()
+                    with self.lock:
+                        self.last_frame = frame_bytes
+                else:
+                    with self.lock:
+                        self.last_frame = self.default_frame
+                    cap.release()
+                    time.sleep(1)
+                    break
+
+    def get_frame(self):
+        with self.lock:
+            if self.last_frame is None:
+               return self.default_frame
+            return self.last_frame

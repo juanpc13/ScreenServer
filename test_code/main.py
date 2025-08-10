@@ -3,7 +3,7 @@ from waitress import serve
 from datetime import datetime
 import uuid
 
-from test_code.frame_provider import FrameProviderScreenRegion, FrameProviderCamera  # Asegúrate de que este archivo esté en el mismo directorio
+from test_code.frame_provider import FrameProviderScreenRegion, FrameProviderCamera, FrameProviderVideoCapture
 from access_logger import AccessLogger  # Si lo pones en otro archivo, si no, ignora esta línea
 from test_code.websocket_server import WebSocketServer
 
@@ -19,15 +19,13 @@ app.secret_key = 'a94652aa97c7211ba8954dd15a3cf838'
 
 access_logger = AccessLogger()  # Instancia global
 
-frame_provider = FrameProviderScreenRegion(monitor_index=1, fps=60, default_image_path="logo.png")  # Usa la segunda pantalla
-#frame_provider = FrameProviderCamera(device_index=0, width=1280, height=720, default_image_path="logo.png")  # Usa la cámara por defecto
-#frame_provider.stop()  # Detener la captura de frames al iniciar
+#frame_provider = FrameProviderScreenRegion(monitor_index=1, fps=60, default_image_path="logo.png")  # Usa la segunda pantalla
+frame_provider = FrameProviderVideoCapture(video_source="udp://@:5000", default_image_path="logo.png")
 
-# Iniciar el servidor WebSocket en segundo plano para transmitir los frames
-#ws_server = FrameWebSocketServer(frame_provider, host='0.0.0.0', port=8765, fps=20)
+# Iniciar el servidor WebSocket
 ws_server = WebSocketServer(frame_provider=frame_provider, fps=20)  # Instancia del servidor WebSocket
-ws_server.add_message_type(b'\x01')  # Tipo de mensaje para texto
-ws_server.start_in_thread()  # Iniciar el servidor WebSocket
+# Iniciar el servidor WebSocket
+ws_server.start_in_thread()
 
 @app.route('/')
 def index():
@@ -42,7 +40,7 @@ def index():
     # Registrar acceso usando la clase
     access_logger.log_access(session_id, ip, user_agent, now)
     # Imprimir en consola
-    print(f"[{now}] GET / from {ip} | Session: {session_id} | User-Agent: {user_agent}")
+    print(f"[{now}] GET / from {ip} | Session: {session_id}")
 
     # Renderizar una plantilla HTML simple
     return render_template('index.html')

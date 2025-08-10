@@ -1,88 +1,59 @@
+<!DOCTYPE html>
 <html>
 <head>
-    <title>Screen Stream</title>
+    <title>🎵 Cola de Canciones</title>
+    <meta charset="UTF-8">
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            background: #222;
-        }
-        img {
-            width: 100vw;
-            height: 100vh;
-            object-fit: contain;
-            border-radius: 0;
-            box-shadow: none;
-            background: #333;
-            display: block;
-        }
-        #aliasForm {
-            text-align: center;
-            margin-top: 30px;
-        }
-        #aliasInput {
-            padding: 8px;
-            font-size: 1rem;
-        }
-        #aliasBtn {
-            padding: 8px 16px;
-            font-size: 1rem;
-            margin-left: 8px;
-        }
+        body { font-family: Arial; background: #f0f0f0; padding: 20px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+        h1 { text-align: center; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 6px; border-bottom: 1px solid #ddd; }
+        form { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
+        input, button { padding: 8px; font-size: 1em; }
     </style>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 </head>
 <body>
-    <h1 style="color: white; text-align: center;">Screen Stream</h1>
-    <div id="aliasForm">
-        <input type="text" id="aliasInput" placeholder="Escribe tu alias..." />
-        <button id="aliasBtn">Guardar alias</button>
-        <span id="aliasMsg" style="color: #0f0; margin-left: 10px;"></span>
-    </div>
-    <img id="screenImg" alt="Screen Stream" />
-    <script>
-        const socket = io('http://localhost:5000');
-        socket.on('frame', function(data) {
-            const blob = new Blob([data], {type: 'image/jpeg'});
-            const url = URL.createObjectURL(blob);
-            const img = document.getElementById('screenImg');
-            img.src = url;
+<div class="container">
+    <h1>🎵 Cola de Canciones</h1>
+    <p><strong>Conectado como:</strong> {{ username }}</p>
+    <ul id="queue"></ul>
+    <form id="songForm">
+        <input type="text" id="song" placeholder="Nombre de la canción" required>
+        <input type="text" id="artist" placeholder="Artista" required>
+        <button type="submit">Proponer</button>
+    </form>
+</div>
 
-            // Liberar el objeto URL anterior para evitar fugas de memoria
-            if (img._oldUrl) URL.revokeObjectURL(img._oldUrl);
-            img._oldUrl = url;
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+    var socket = io();
+    var queueList = document.getElementById("queue");
+    var songForm = document.getElementById("songForm");
+    var songInput = document.getElementById("song");
+    var artistInput = document.getElementById("artist");
+
+    function renderQueue(data) {
+        queueList.innerHTML = "";
+        data.forEach(function(item, index) {
+            var li = document.createElement("li");
+            li.textContent = (index+1) + ". " + item.song + " - " + item.artist + " — propuesto por " + item.user;
+            queueList.appendChild(li);
         });
+    }
 
-        document.getElementById('aliasBtn').onclick = function() {
-            const alias = document.getElementById('aliasInput').value;
-            if (!alias) {
-                document.getElementById('aliasMsg').textContent = "¡Debes ingresar un alias!";
-                document.getElementById('aliasMsg').style.color = "#f00";
-                return;
-            }
-            fetch('/set_alias', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({alias: alias})
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('aliasMsg').textContent = "Alias guardado correctamente";
-                    document.getElementById('aliasMsg').style.color = "#0f0";
-                } else {
-                    document.getElementById('aliasMsg').textContent = data.error || "Error al guardar alias";
-                    document.getElementById('aliasMsg').style.color = "#f00";
-                }
-            })
-            .catch(() => {
-                document.getElementById('aliasMsg').textContent = "Error de red";
-                document.getElementById('aliasMsg').style.color = "#f00";
-            });
-        };
+    socket.on("update_queue", function(data) {
+        renderQueue(data);
+    });
 
-    </script>
+    songForm.addEventListener("submit", function(e) {
+        e.preventDefault();
+        socket.emit("new_song", { song: songInput.value, artist: artistInput.value });
+        songInput.value = "";
+        artistInput.value = "";
+    });
+
+    socket.emit("get_queue");
+</script>
 </body>
 </html>
