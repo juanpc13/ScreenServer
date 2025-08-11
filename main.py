@@ -59,10 +59,15 @@ def broadcast_frame(video_source="udp://@:5000", fps=22):
     img = cv2.imread("logo.png")
     _, buffer = cv2.imencode('.jpg', img)
     default_frame = buffer.tobytes()
+
+    device_index = 1
+    width = 1280
+    height = 720
+    cap = cv2.VideoCapture(device_index, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     while True:
         try:
-            cap = cv2.VideoCapture(video_source, cv2.CAP_FFMPEG)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             while True:
                 success, frame = cap.read()
                 if success:
@@ -72,7 +77,10 @@ def broadcast_frame(video_source="udp://@:5000", fps=22):
                     socketio.emit("frame", frame_bytes)
                     socketio.sleep(1 / fps)
                 else:
+                    print("No se pudo capturar el frame, enviando frame por defecto.")
+                    #socketio.emit("frame", default_frame)
                     cap.release()
+                    socketio.sleep(2)
                     break
         except Exception as e:
             print(f"Error en la captura de video: {e}")
