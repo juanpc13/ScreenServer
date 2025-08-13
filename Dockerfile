@@ -7,7 +7,7 @@ WORKDIR /app
 COPY app.py /app
 
 # Instalar dependencias
-RUN pip install flask flask-socketio
+RUN pip install flask flask-socketio opencv-python gevent
 
 # Exponer el puerto
 EXPOSE 5000

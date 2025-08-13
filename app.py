@@ -3,9 +3,13 @@ from flask import Flask, render_template, request, session, redirect, url_for
 from flask_socketio import SocketIO, emit
 import uuid
 
+import gevent
+import gevent.monkey
+gevent.monkey.patch_all()
+
 app = Flask(__name__)
 app.secret_key = "clave_super_secreta"
-socketio = SocketIO(app, async_mode="threading")
+socketio = SocketIO(app, async_mode="gevent")
 
 queue = []
 
@@ -73,18 +77,21 @@ def broadcast_frame(video_source="udp://@:5000", fps=22):
                     socketio.sleep(1 / fps)
                 else:
                     cap.release()
+                    socketio.emit("frame", default_frame)
+                    socketio.sleep(5)
                     break
         except Exception as e:
             print(f"Error en la captura de video: {e}")
             socketio.emit("frame", default_frame)
-            socketio.sleep(1)
+            socketio.sleep(5)
 
 if __name__ == "__main__":
     # Iniciar tarea en segundo plano para el frame
-    socketio.start_background_task(broadcast_frame, "udp://@:5000", 22)
+
+    task = socketio.start_background_task(broadcast_frame, "udp://@:5000", 22)
 
     # Detectar si estamos en producción o desarrollo
     ENV = os.getenv("FLASK_ENV", "development").lower()
     DEBUG_MODE = ENV != "production"
-    
+
     socketio.run(app, debug=DEBUG_MODE, host="0.0.0.0")

@@ -1,5 +1,15 @@
 # ScreenServer
 
+# Python Env
+
+## Windows
+$ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+$ .\venv\Scripts\Activate
+
+# Paquetes
+$ pip install flask flask-socketio eventlet
+
+# Transmitir
 ffmpeg.exe -list_devices true -f dshow -i dummy
 
 ffmpeg.exe -f dshow -i video="Logi C270 HD WebCam" -f mpegts udp://localhost:5000
