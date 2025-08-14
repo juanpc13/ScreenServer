@@ -1,6 +1,7 @@
 # ScreenServer
 
 # Python Env
+python -m venv venv
 
 ## Windows
 $ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
