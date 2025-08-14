@@ -4,78 +4,145 @@
     <title>🎵 Cola de Canciones</title>
     <meta charset="UTF-8">
     <style>
-        body { font-family: Arial; background: #f0f0f0; padding: 20px; }
-        .container { max-width: 700px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
-        h1 { text-align: center; }
-        .main-flex {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-        }
-        .img-box {
-            flex: 0 0 200px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        #screenImg {
-            max-width: 180px;
-            width: 100%;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px #ccc;
-            height: auto;
-        }
-        .queue-box {
-            flex: 1;
-        }
-        ul { list-style: none; padding: 0; margin: 0; }
-        li { padding: 6px; border-bottom: 1px solid #ddd; }
-        .current-song {
-            background: #e0f7fa;
-            font-weight: bold;
-            border-left: 4px solid #00bcd4;
-        }
-        .current-label {
-            color: #00bcd4;
-            font-size: 0.9em;
-            margin-left: 8px;
-            font-weight: normal;
-        }
-        form { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
-        input, button { padding: 8px; font-size: 1em; }
-        @media (max-width: 600px) {
-            .main-flex {
-                flex-direction: column;
-                gap: 10px;
-            }
-            .img-box {
-                justify-content: center;
-                margin-bottom: 10px;
-            }
-            #screenImg {
-                max-width: 100%;
-            }
-        }
+        body {
+    font-family: Arial;
+    background: #f0f0f0;
+    padding: 20px;
+}
+.container {
+    max-width: 1200px; /* Aumenta el ancho máximo */
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+}
+h1 { text-align: center; }
+.main-flex {
+    display: flex;
+    gap: 32px; /* Más espacio entre imagen y panel */
+    align-items: flex-start;
+    flex-direction: row;
+}
+.main-img {
+    flex: 3 1 0; /* La imagen ocupa más espacio */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+}
+#screenImg {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px #ccc;
+    height: auto;
+    aspect-ratio: 16/9;
+    object-fit: contain;
+    background: #222;
+}
+.side-panel {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 260px; /* Un poco más ancho */
+}
+.queue-box {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 300px;
+}
+ul { list-style: none; padding: 0; margin: 0; }
+li { padding: 6px; border-bottom: 1px solid #ddd; }
+.current-song {
+    background: #e0f7fa;
+    font-weight: bold;
+    border-left: 4px solid #00bcd4;
+    font-size: 1.15em;
+    padding: 10px 8px;
+    color: #007a8c;
+    display: flex;
+    flex-direction: column;
+}
+.current-label {
+    color: #00bcd4;
+    font-size: 0.95em;
+    margin-left: 0;
+    font-weight: normal;
+    margin-top: 4px;
+}
+.current-user {
+    color: #007a8c;
+    font-size: 0.95em;
+    font-weight: bold;
+    margin-top: 2px;
+    opacity: 0.85;
+}
+form { margin-top: 15px; display: flex; flex-direction: column; gap: 5px; }
+input, button { padding: 8px; font-size: 1em; }
+#viewModeBtn {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1000;
+    background: #00bcd4;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    padding: 0;
+    width: 48px;
+    height: 48px;
+    font-size: 2em;
+    box-shadow: 0 2px 8px #aaa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+#viewModeBtn:hover {
+    background: #0097a7;
+}
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+    .container {
+        max-width: 100vw;
+        padding: 8px;
+    }
+    .main-flex {
+        flex-direction: column;
+        gap: 16px;
+    }
+    .main-img, .side-panel {
+        width: 100%;
+        min-width: 0;
+    }
+    .queue-box {
+        max-height: 200px;
+    }
+}
     </style>
 </head>
 <body>
 <div class="container">
     <h1>🎵 Cola de Canciones</h1>
-    <p><strong>Conectado como:</strong> {{ username }}</p>
+    <p id="userInfo"><strong>Conectado como:</strong> {{ username }}</p>
     <div class="main-flex">
-        <div class="img-box">
+        <div class="img-box main-img">
             <img id="screenImg" src="" alt="Pantalla">
         </div>
-        <div class="queue-box">
-            <ul id="queue"></ul>
+        <div class="side-panel">
+            <div class="queue-box">
+                <ul id="queue"></ul>
+            </div>
+            <form id="songForm">
+                <input type="text" id="song" placeholder="Nombre de la canción" required>
+                <input type="text" id="artist" placeholder="Artista" required>
+                <button type="submit">Proponer</button>
+            </form>
         </div>
     </div>
-    <form id="songForm">
-        <input type="text" id="song" placeholder="Nombre de la canción" required>
-        <input type="text" id="artist" placeholder="Artista" required>
-        <button type="submit">Proponer</button>
-    </form>
 </div>
+<button id="viewModeBtn" title="Modo visualización">👁️</button>
 
 <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 <script>
@@ -89,13 +156,13 @@
         queueList.innerHTML = "";
         data.forEach(function(item, index) {
             var li = document.createElement("li");
-            li.textContent = (index+1) + ". " + item.song + " - " + item.artist + " — propuesto por " + item.user;
             if (index === 0) {
                 li.classList.add("current-song");
-                var span = document.createElement("span");
-                span.className = "current-label";
-                span.textContent = "⏯️ Actual";
-                li.appendChild(span);
+                li.innerHTML = `<span>${item.song} - ${item.artist}</span>
+                    <span class="current-label">⏯️ Actual</span>
+                    <span class="current-user">Solicitado por: ${item.user}</span>`;
+            } else {
+                li.textContent = (index+1) + ". " + item.song + " - " + item.artist + " — propuesto por " + item.user;
             }
             queueList.appendChild(li);
         });
@@ -123,6 +190,17 @@
     });
 
     socket.emit("get_queue");
+
+    // Botón de modo visualización compacto con alternancia
+    let viewMode = false;
+    const btn = document.getElementById("viewModeBtn");
+    btn.onclick = function() {
+        viewMode = !viewMode;
+        document.getElementById("userInfo").style.display = viewMode ? "none" : "";
+        document.getElementById("songForm").style.display = viewMode ? "none" : "";
+        btn.textContent = viewMode ? "❌" : "👁️";
+        btn.title = viewMode ? "Salir de modo visualización" : "Modo visualización";
+    };
 </script>
 </body>
 </html>
